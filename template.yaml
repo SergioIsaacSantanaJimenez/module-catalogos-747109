@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Modulo Catalogos - Clientes, Domicilios, Productos - 747109
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+        TABLE_CLIENTES: "clientes"
+        TABLE_DOMICILIOS: "domicilios"
+        TABLE_PRODUCTOS: "productos"
+        NODE_ENV: "production"
+
+Resources:
+
+  CatalogosRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: catalogos-role-747109
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CatalogosPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/clientes"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/domicilios"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/productos"
+
+  CatalogosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: catalogos-747109
+      Handler: dist/index.handler
+      CodeUri: .
+      Role: !GetAtt CatalogosRole.Arn
+      Events:
+        Clientes:
+          Type: Api
+          Properties:
+            Path: /clientes
+            Method: ANY
+        ClientesId:
+          Type: Api
+          Properties:
+            Path: /clientes/{id}
+            Method: ANY
+        Domicilios:
+          Type: Api
+          Properties:
+            Path: /domicilios
+            Method: ANY
+        DomiciliosId:
+          Type: Api
+          Properties:
+            Path: /domicilios/{id}
+            Method: ANY
+        Productos:
+          Type: Api
+          Properties:
+            Path: /productos
+            Method: ANY
+        ProductosId:
+          Type: Api
+          Properties:
+            Path: /productos/{id}
+            Method: ANY
+
+  # Las tablas DynamoDB (clientes, domicilios, productos) ya existen del stack del examen 1.
+  # Se referencian por nombre via variables de entorno — no se recrean aqui.
+
+Outputs:
+  ApiUrl:
+    Description: "URL del API de Catalogos"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  FunctionArn:
+    Description: "ARN de la Lambda de Catalogos"
+    Value: !GetAtt CatalogosFunction.Arn
